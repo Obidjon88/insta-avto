@@ -1,0 +1,31 @@
+{
+  "avto_joylash": true,
+  "tillar": ["ru", "uz-cyrl"],
+  "mavzular": [
+    "hayot saboqlari va tajriba",
+    "vaqt qadri",
+    "ota-ona va oila qadri",
+    "haqiqiy do'stlik",
+    "sabr va kuch",
+    "mehnat va muvaffaqiyat",
+    "sevgi va sadoqat",
+    "o'zini qadrlash",
+    "minnatdorlik",
+    "odamlar va ularning asl qiyofasi"
+  ],
+  "fonlar": ["rain", "stars", "sunset", "road"],
+  "muvaffaqiyatli_namunalar": [
+    "Rus tilida, 'Как-то так...' kichik sarlavhasi bilan: hayot haqida kinoyali-achchiq qisqa xulosa (69 like)",
+    "Rus tilida: o'tmishdagi munosabatlar haqida yengil kinoyali kuzatuv, yo'lda ketayotgan mashina fonida (33 like)",
+    "O'zbek tilida, kirillda: qadriyatlar haqida she'riy, o'ychan to'rt satr (14 like)",
+    "Rus tilida: 'vaqt davolaydimi?' degan falsafiy savolga kutilmagan javob (14 like)",
+    "O'zbek tilida: 'Bu dunyoning ishlari qiziq' kabi qisqa hayotiy kuzatuv (23 like)"
+  ],
+  "yangilik_manbalari": [
+    "https://kun.uz/news/rss",
+    "https://www.gazeta.uz/ru/rss/",
+    "https://uza.uz/uz/rss"
+  ],
+  "ai_modellar": ["openai/gpt-4.1", "openai/gpt-4o", "openai/gpt-4o-mini"],
+  "taqiqlangan_sozlar": ["суицид", "o'z joniga", "убей", "наркот", "казино", "ставки", "kazino"]
+}

@@ -1,0 +1,64 @@
+name: Kunlik reels (tahlil + AI + joylash)
+on:
+  schedule:
+    - cron: "43 14 * * *"  # har kuni ~19:45 Toshkent vaqti
+  workflow_dispatch:
+    inputs:
+      sinov:
+        description: "Faqat yasash, joylamaslik (true/false)"
+        default: "false"
+permissions:
+  contents: read
+  models: read
+concurrency:
+  group: instagram
+  cancel-in-progress: false
+jobs:
+  reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Kutubxonalar
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg libcairo2-dev pkg-config > /dev/null
+          pip install -q -r requirements.txt
+      - name: Holatni tiklash (yopiq kesh)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            state.json
+            log.txt
+            tahlil/reels_tarix.json
+          key: holat-${{ github.run_id }}
+          restore-keys: holat-
+      - name: Tahlil, matn, video, joylash
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_BUSINESS_ID: ${{ secrets.IG_BUSINESS_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TZ: Asia/Tashkent
+        run: |
+          if [ "${{ github.event.inputs.sinov }}" = "true" ]; then python reels/daily.py --dry-run; else python reels/daily.py; fi
+      - name: Videoni saqlash (7 kun)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ github.run_number }}
+          path: output/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Holatni saqlash (yopiq kesh)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            state.json
+            log.txt
+            tahlil/reels_tarix.json
+          key: holat-${{ github.run_id }}

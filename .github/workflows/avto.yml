@@ -1,0 +1,64 @@
+name: Instagram avtomatika (har soat)
+on:
+  schedule:
+    - cron: "17 * * * *"   # har soatda bir marta (UTC)
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: instagram
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests
+      - name: Holatni tiklash (yopiq kesh)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            state.json
+            log.txt
+            tahlil/reels_tarix.json
+          key: holat-${{ github.run_id }}
+          restore-keys: holat-
+      - name: Jadval + kommentlarga javob
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_BUSINESS_ID: ${{ secrets.IG_BUSINESS_ID }}
+          MEDIA_BASE_URL: ${{ vars.MEDIA_BASE_URL }}
+          TZ: Asia/Tashkent
+        run: python main.py bir_marta
+      - name: Haftalik hisobot (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hisobot-${{ github.run_number }}
+          path: hisobotlar/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Jadval holatini saqlash
+        if: always()
+        run: |
+          mkdir -p tahlil && touch state.json log.txt
+          git config user.name "insta-bot"
+          git config user.email "insta-bot@users.noreply.github.com"
+          git add schedule.csv
+          git diff --cached --quiet || git commit -m "avto: jadval holati"
+          git pull --rebase -q || true
+          git push -q || true
+      - name: Holatni saqlash (yopiq kesh)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            state.json
+            log.txt
+            tahlil/reels_tarix.json
+          key: holat-${{ github.run_id }}

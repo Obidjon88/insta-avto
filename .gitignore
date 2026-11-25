@@ -1,0 +1,13 @@
+.env
+__pycache__/
+output/
+media/
+multfilm_reels/
+tahlil/*.jpg
+*.tmp.mp4
+*.zip
+_ochirilgan/
+state.json
+log.txt
+hisobotlar/
+tahlil/

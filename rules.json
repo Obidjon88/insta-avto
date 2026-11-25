@@ -1,0 +1,23 @@
+{
+  "yoqilgan": true,
+  "tekshiriladigan_postlar": 10,
+  "eski_kommentlarga_javob": false,
+  "qoidalar": [
+    {
+      "kalit_sozlar": ["fakt", "yana", "davomi", "ha"],
+      "javob": "@{username} Albatta! Keyingi fakt tez orada 😉 Obuna bo'lib qo'ying, o'tkazib yubormang",
+      "direct": ""
+    },
+    {
+      "kalit_sozlar": ["rahmat", "zo'r", "zor", "ajoyib", "qiziq", "🔥", "❤", "😍"],
+      "javob": "@{username} Rahmat! 🙏 Do'stlaringizga ham ulashing",
+      "direct": ""
+    }
+  ],
+  "_izoh": "Direct yuborish uchun qoidaga \"direct\": \"matn\" yozing. Masalan, bepul PDF yoki havola tarqatmoqchi bo'lsangiz.",
+  "umumiy_javob": {
+    "yoqilgan": false,
+    "javob": "@{username} Fikringiz uchun rahmat!",
+    "direct": ""
+  }
+}
