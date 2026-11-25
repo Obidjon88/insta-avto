@@ -21,7 +21,6 @@ CONFIG = os.path.join(ROOT, "reels_config.json")
 HISTORY = os.path.join(ROOT, "tahlil", "reels_tarix.json")
 OUT = os.path.join(ROOT, "output")
 TZ = timezone(timedelta(hours=5))
-MODELS_URL = "https://models.github.ai/inference/chat/completions"
 
 
 def log(msg):
@@ -107,34 +106,60 @@ def news(feeds, limit=12):
 
 
 # ---------- 3. AI ----------
+class NoAI(Exception):
+    pass
+
+
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+
+
 def llm(messages, models, temperature=0.9):
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_MODELS_TOKEN")
-    if not token:
-        raise RuntimeError("GITHUB_TOKEN yo'q (GitHub Actions'da avtomatik beriladi)")
+    """Google Gemini (bepul tarif) orqali. GEMINI_API_KEY bo'lmasa NoAI ko'taradi."""
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not key:
+        raise NoAI("GEMINI_API_KEY yo'q")
     last = None
-    endpoints = [(MODELS_URL, lambda m: m),
-                 ("https://models.inference.ai.azure.com/chat/completions", lambda m: m.split("/")[-1])]
-    for url, name in endpoints:
-        for model in models:
-            for attempt in range(2):
+    for model in models:
+        for attempt in range(3):
+            try:
+                r = requests.post(GEMINI_URL, timeout=120, headers={
+                    "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json={"model": model, "messages": messages, "temperature": temperature})
+                if r.status_code == 429:
+                    log(f"AI limit (429), kutilyapti: {model}"); time.sleep(20 * (attempt + 1)); continue
                 try:
-                    r = requests.post(url, timeout=120, headers={
-                        "Authorization": f"Bearer {token}", "Content-Type": "application/json",
-                        "Accept": "application/json"},
-                        json={"model": name(model), "messages": messages, "temperature": temperature})
-                    if r.status_code == 429:
-                        log(f"AI limit (429), kutilyapti: {model}"); time.sleep(20 * (attempt + 1)); continue
-                    try:
-                        data = r.json()
-                    except ValueError:
-                        data = None
-                    if r.status_code >= 400 or not data or "choices" not in data:
-                        last = f"{url.split('/')[2]} {model}: HTTP {r.status_code} {r.text[:200]!r}"
-                        log(f"AI xato: {last}"); break
-                    return data["choices"][0]["message"]["content"]
-                except requests.RequestException as e:
-                    last = f"{model}: {e}"; log(f"AI tarmoq xatosi: {last}"); time.sleep(5)
+                    data = r.json()
+                except ValueError:
+                    data = None
+                if r.status_code >= 400 or not data or "choices" not in data:
+                    last = f"{model}: HTTP {r.status_code} {r.text[:200]!r}"
+                    log(f"AI xato: {last}"); break
+                return data["choices"][0]["message"]["content"]
+            except requests.RequestException as e:
+                last = f"{model}: {e.__class__.__name__}"; log(f"AI tarmoq xatosi: {last}"); time.sleep(5)
     raise RuntimeError(f"AI javob bermadi: {last}")
+
+
+BANK = os.path.join(HERE, "matnlar_banki.json")
+
+
+def from_bank(lang, theme, hist):
+    """AI bo'lmasa: tayyor original matnlar bankidan hali ishlatilmaganini oladi."""
+    bank = load(BANK, [])
+    used = {h.get("matn") for h in hist}
+    free = [b for b in bank if b["matn"] not in used]
+    if not free:  # hammasi ishlatilgan bo'lsa, eng eskisidan qayta boshlaydi
+        free = bank
+    pick = ([b for b in free if b["til"] == lang and b["mavzu"] == theme]
+            or [b for b in free if b["til"] == lang] or free)
+    b = random.choice(pick)
+    tags = TAGS.get(b["til"], [])
+    return {"matn": b["matn"], "yuqori_yozuv": b.get("yuqori_yozuv"), "caption": b.get("caption", ""),
+            "heshteglar": tags, "_til": b["til"], "_mavzu": b["mavzu"]}
+
+
+TAGS = {"ru": ["#мысли", "#цитаты", "#жизнь", "#мудрость", "#смысл", "#правдажизни", "#мотивация", "#reels", "#узбекистан"],
+        "uz-cyrl": ["#ҳикматлар", "#hikmatlar", "#ҳаёт", "#фикрлар", "#uzbekistan", "#toshkent", "#motivatsiya", "#reels", "#ozbekiston"]}
 
 
 def parse_json(text):
@@ -211,14 +236,21 @@ def main(dry=False):
     log(f"tanlandi: til={lang} mavzu={theme} fon={style} yangiliklar={len(headlines)}")
 
     data = None
-    for attempt in range(4):
-        cand = write_text(cfg, lang, theme, headlines, [h.get("matn", "") for h in hist])
-        ok, why = safe(cfg, cand)
-        log(f"matn varianti {attempt + 1}: {'OK' if ok else 'rad etildi (' + why + ')'}")
-        if ok:
-            data = cand; break
+    try:
+        for attempt in range(4):
+            cand = write_text(cfg, lang, theme, headlines, [h.get("matn", "") for h in hist])
+            ok, why = safe(cfg, cand)
+            log(f"AI matn varianti {attempt + 1}: {'OK' if ok else 'rad etildi (' + why + ')'}")
+            if ok:
+                data = cand; break
+    except NoAI:
+        log("AI kaliti yo'q - matnlar bankidan olinadi")
+    except Exception as e:
+        log(f"AI ishlamadi ({e}) - matnlar bankidan olinadi")
     if not data:
-        raise RuntimeError("Xavfsiz matn yozilmadi, bugun joylanmaydi")
+        data = from_bank(lang, theme, hist)
+        lang, theme = data.get("_til", lang), data.get("_mavzu", theme)
+        log(f"bankdan: til={lang} mavzu={theme}")
 
     stamp = datetime.now(TZ).strftime("%Y%m%d_%H%M")
     path = os.path.join(OUT, f"reel_{stamp}.mp4")

@@ -108,9 +108,10 @@ class Background:
 
 
 # ---------------- matn ----------------
-def wrap(d, text, f, maxw):
-    out = []
-    for para in text.split("\n"):
+def wrap(d, text, f, maxw, with_para=False):
+    out = []; paras = []
+    for pi, para in enumerate(text.split("\n")):
+        before = len(out)
         cur = ""
         for w in para.split():
             tt = (cur + " " + w).strip()
@@ -119,10 +120,12 @@ def wrap(d, text, f, maxw):
                 if cur: out.append(cur)
                 cur = w
         out.append(cur)
-    return out
+        paras += [pi] * (len(out) - before)
+    return (out, paras) if with_para else out
 
 
 def text_layer(lines, t, line_times, size, accent_idx=None):
+    accent = accent_idx if isinstance(accent_idx, (set, list, tuple)) else ({accent_idx} if accent_idx is not None else set())
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     f = font(size, "SemiBold"); fa = font(int(size * 1.12), "ExtraBold")
@@ -132,10 +135,14 @@ def text_layer(lines, t, line_times, size, accent_idx=None):
     for i, ln in enumerate(lines):
         a = ease((t - line_times[i]) / 0.7)
         if a <= 0: continue
-        ff = fa if i == accent_idx else f
+        ff = fa if i in accent else f
+        if i in accent:
+            k = int(size * 1.12)
+            while d.textlength(ln, font=ff) > 990 and k > size * 0.8:
+                k -= 2; ff = font(k, "ExtraBold")
         tw = d.textlength(ln, font=ff)
         x = (W - tw) / 2; y = y0 + i * lh + (1 - a) * 25
-        col = (255, 214, 120) if i == accent_idx else (255, 255, 255)
+        col = (255, 214, 120) if i in accent else (255, 255, 255)
         # soya
         sh = Image.new("RGBA", (W, H), (0, 0, 0, 0)); sd = ImageDraw.Draw(sh)
         sd.text((x + 3, y + 5), ln, font=ff, fill=(0, 0, 0, int(200 * a)))
@@ -174,12 +181,15 @@ def make_music(dur, path, seed=0):
 def render(text, out_path, style="rain", seed=1, top_label=None):
     """text: bir nechta satrli iqtibos (\n bilan ajratilgan qism-satrlar bo'lishi mumkin)."""
     tmpimg = Image.new("RGB", (10, 10)); d = ImageDraw.Draw(tmpimg)
-    size = 68
+    n_par = len([p for p in text.split("\n")])
+    size = 72
     while True:
-        lines = wrap(d, text, font(size), 900)
-        if len(lines) * size * 1.38 < 900 or size <= 44: break
-        size -= 4
-    accent = len(lines) - 1 if len(lines) >= 3 else None
+        lines, paras = wrap(d, text, font(size, "SemiBold"), 920, with_para=True)
+        if (len(lines) == n_par and len(lines) * size * 1.38 < 950) or size <= 46:
+            break
+        size -= 2
+    last = max(paras) if paras else 0
+    accent = {i for i, p in enumerate(paras) if p == last} if n_par >= 3 else set()
     start = 0.8; step = 0.9
     line_times = [start + i * step for i in range(len(lines))]
     dur = max(9.0, line_times[-1] + 4.5)

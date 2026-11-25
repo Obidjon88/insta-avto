@@ -26,6 +26,6 @@
     "https://www.gazeta.uz/ru/rss/",
     "https://uza.uz/uz/rss"
   ],
-  "ai_modellar": ["openai/gpt-4.1", "openai/gpt-4o", "openai/gpt-4o-mini"],
+  "ai_modellar": ["gemini-flash-latest", "gemini-flash-lite-latest"],
   "taqiqlangan_sozlar": ["суицид", "o'z joniga", "убей", "наркот", "казино", "ставки", "kazino"]
 }
