@@ -237,6 +237,22 @@ def render_pro(data, lang, theme, seed, out_path, cfg):
     r = subprocess.run(cmd, cwd=PRO, capture_output=True, text=True, timeout=900)
     if r.returncode != 0 or not os.path.exists(out_path):
         raise RuntimeError((r.stderr or r.stdout)[-400:])
+    normalize(out_path)
+
+
+def normalize(path):
+    """Instagram uchun standart format: H.264 High 4.1, BT.709, AAC 44.1kHz, metama'lumotsiz, faststart."""
+    import subprocess
+    tmp = path[:-4] + ".norm.tmp.mp4"
+    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-map", "0:v:0", "-map", "0:a:0?",
+                        "-map_metadata", "-1", "-c:v", "libx264", "-preset", "medium", "-crf", "19",
+                        "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p", "-r", "30", "-g", "60",
+                        "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
+                        "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart", tmp])
+    if r.returncode == 0 and os.path.getsize(tmp) > 10000:
+        os.replace(tmp, path)
+    else:
+        log("normalizatsiya o'tkazib yuborildi")
 
 
 # ---------- asosiy ----------
@@ -288,6 +304,7 @@ def main(dry=False):
         log(f"Remotion ishlamadi ({str(e)[:200]}) - oddiy usulda yasaladi")
         fallback = {"aurora": "stars", "ocean": "rain"}.get(style, style)
         render_quote.render(data["matn"], path, fallback, seed=seed, top_label=data.get("yuqori_yozuv") or None)
+        normalize(path)
     tags = " ".join(data.get("heshteglar", [])[:12])
     caption = f"{data.get('caption', '').strip()}\n\n{tags}".strip()
     rec = {"sana": stamp, "til": lang, "mavzu": theme, "fon": style, "matn": data["matn"],
