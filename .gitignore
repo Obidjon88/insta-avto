@@ -11,3 +11,7 @@ state.json
 log.txt
 hisobotlar/
 tahlil/
+reels-pro/node_modules/
+reels-pro/props.json
+reels-pro/public/music.wav
+reels-pro/out/

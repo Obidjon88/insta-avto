@@ -213,6 +213,32 @@ def safe(cfg, data):
     return verdict.strip().upper().startswith("SAFE"), verdict.strip()[:40]
 
 
+# ---------- Remotion (pro video) ----------
+PRO = os.path.join(ROOT, "reels-pro")
+CTA = {"ru": "Сохрани, чтобы не забыть 🔖", "uz-cyrl": "Сақлаб қўйинг 🔖", "uz-latn": "Saqlab qo'ying 🔖"}
+
+
+def render_pro(data, lang, theme, seed, out_path, cfg):
+    import subprocess
+    lines = [l.strip() for l in data["matn"].split("\n") if l.strip()]
+    pub = os.path.join(PRO, "public")
+    os.makedirs(pub, exist_ok=True)
+    words = sum(len(l.split()) for l in lines)
+    dur = min(22, max(9, 0.6 + words * 0.16 + len(lines) * 0.35 + 4.6)) + 1
+    render_quote.make_music(dur, os.path.join(pub, "music.wav"), seed)
+    props = {"lines": lines, "topLabel": data.get("yuqori_yozuv") or "", "theme": theme,
+             "handle": cfg.get("handle", ""), "cta": CTA.get(lang, CTA["ru"]), "music": "music.wav", "seed": seed}
+    pfile = os.path.join(PRO, "props.json")
+    save(pfile, props)
+    cmd = ["npx", "remotion", "render", "src/index.ts", "QuoteReel", os.path.abspath(out_path),
+           f"--props={pfile}", "--log=error"]
+    if os.environ.get("REMOTION_BROWSER"):
+        cmd.append(f"--browser-executable={os.environ['REMOTION_BROWSER']}")
+    r = subprocess.run(cmd, cwd=PRO, capture_output=True, text=True, timeout=900)
+    if r.returncode != 0 or not os.path.exists(out_path):
+        raise RuntimeError((r.stderr or r.stdout)[-400:])
+
+
 # ---------- asosiy ----------
 def main(dry=False):
     cfg = load(CONFIG, {})
@@ -254,8 +280,14 @@ def main(dry=False):
 
     stamp = datetime.now(TZ).strftime("%Y%m%d_%H%M")
     path = os.path.join(OUT, f"reel_{stamp}.mp4")
-    render_quote.render(data["matn"], path, style, seed=random.randint(1, 10 ** 6),
-                        top_label=data.get("yuqori_yozuv") or None)
+    seed = random.randint(1, 10 ** 6)
+    try:
+        render_pro(data, lang, style, seed, path, cfg)
+        log("video: Remotion (pro) bilan yasaldi")
+    except Exception as e:
+        log(f"Remotion ishlamadi ({str(e)[:200]}) - oddiy usulda yasaladi")
+        fallback = {"aurora": "stars", "ocean": "rain"}.get(style, style)
+        render_quote.render(data["matn"], path, fallback, seed=seed, top_label=data.get("yuqori_yozuv") or None)
     tags = " ".join(data.get("heshteglar", [])[:12])
     caption = f"{data.get('caption', '').strip()}\n\n{tags}".strip()
     rec = {"sana": stamp, "til": lang, "mavzu": theme, "fon": style, "matn": data["matn"],

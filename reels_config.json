@@ -13,7 +13,8 @@
     "minnatdorlik",
     "odamlar va ularning asl qiyofasi"
   ],
-  "fonlar": ["rain", "stars", "sunset", "road"],
+  "fonlar": ["rain", "stars", "sunset", "road", "aurora", "ocean"],
+  "handle": "@obidjon_gafarov",
   "muvaffaqiyatli_namunalar": [
     "Rus tilida, 'Как-то так...' kichik sarlavhasi bilan: hayot haqida kinoyali-achchiq qisqa xulosa (69 like)",
     "Rus tilida: o'tmishdagi munosabatlar haqida yengil kinoyali kuzatuv, yo'lda ketayotgan mashina fonida (33 like)",
