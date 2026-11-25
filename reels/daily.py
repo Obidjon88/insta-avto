@@ -112,18 +112,28 @@ def llm(messages, models, temperature=0.9):
     if not token:
         raise RuntimeError("GITHUB_TOKEN yo'q (GitHub Actions'da avtomatik beriladi)")
     last = None
-    for model in models:
-        for attempt in range(3):
-            try:
-                r = requests.post(MODELS_URL, timeout=90, headers={
-                    "Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                    json={"model": model, "messages": messages, "temperature": temperature})
-                if r.status_code == 429:
-                    time.sleep(20 * (attempt + 1)); continue
-                r.raise_for_status()
-                return r.json()["choices"][0]["message"]["content"]
-            except Exception as e:
-                last = e; time.sleep(5)
+    endpoints = [(MODELS_URL, lambda m: m),
+                 ("https://models.inference.ai.azure.com/chat/completions", lambda m: m.split("/")[-1])]
+    for url, name in endpoints:
+        for model in models:
+            for attempt in range(2):
+                try:
+                    r = requests.post(url, timeout=120, headers={
+                        "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+                        "Accept": "application/json"},
+                        json={"model": name(model), "messages": messages, "temperature": temperature})
+                    if r.status_code == 429:
+                        log(f"AI limit (429), kutilyapti: {model}"); time.sleep(20 * (attempt + 1)); continue
+                    try:
+                        data = r.json()
+                    except ValueError:
+                        data = None
+                    if r.status_code >= 400 or not data or "choices" not in data:
+                        last = f"{url.split('/')[2]} {model}: HTTP {r.status_code} {r.text[:200]!r}"
+                        log(f"AI xato: {last}"); break
+                    return data["choices"][0]["message"]["content"]
+                except requests.RequestException as e:
+                    last = f"{model}: {e}"; log(f"AI tarmoq xatosi: {last}"); time.sleep(5)
     raise RuntimeError(f"AI javob bermadi: {last}")
 
 
