@@ -1,5 +1,7 @@
 {
   "avto_joylash": true,
+  "joylash_vaqtlari": ["12:45", "19:45"],
+  "kechikish_oynasi_soat": 5,
   "tillar": ["ru", "uz-cyrl"],
   "mavzular": [
     "hayot saboqlari va tajriba",

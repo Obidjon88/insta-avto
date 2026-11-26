@@ -1,8 +1,7 @@
 name: Kunlik reels (tahlil + AI + joylash)
 on:
   schedule:
-    - cron: "43 7 * * *"   # har kuni ~12:45 Toshkent vaqti
-    - cron: "43 14 * * *"  # har kuni ~19:45 Toshkent vaqti
+    - cron: "13,43 * * * *"   # har 30 daqiqada tekshiradi; joylash vaqtlari reels_config.json da
   workflow_dispatch:
     inputs:
       sinov:
@@ -22,17 +21,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: reels-pro/package-lock.json
-      - name: Kutubxonalar
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg libcairo2-dev pkg-config fonts-noto-color-emoji > /dev/null
-          pip install -q -r requirements.txt
-          cd reels-pro && npm ci --no-audit --no-fund && npx remotion browser ensure
       - name: Holatni tiklash (yopiq kesh)
         uses: actions/cache/restore@v4
         with:
@@ -42,7 +30,26 @@ jobs:
             tahlil/reels_tarix.json
           key: holat-${{ github.run_id }}
           restore-keys: holat-
+      - name: Joylash vaqti keldimi?
+        id: slot
+        env:
+          TZ: Asia/Tashkent
+        run: python reels/daily.py --check-slot
+      - uses: actions/setup-node@v4
+        if: steps.slot.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: reels-pro/package-lock.json
+      - name: Kutubxonalar
+        if: steps.slot.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg libcairo2-dev pkg-config fonts-noto-color-emoji > /dev/null
+          pip install -q -r requirements.txt
+          cd reels-pro && npm ci --no-audit --no-fund && npx remotion browser ensure
       - name: Tahlil, matn, video, joylash
+        if: steps.slot.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -52,7 +59,7 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.sinov }}" = "true" ]; then python reels/daily.py --dry-run; else python reels/daily.py; fi
       - name: Videoni saqlash (7 kun)
-        if: always()
+        if: always() && (steps.slot.outputs.run == 'true' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-artifact@v4
         with:
           name: reel-${{ github.run_number }}
@@ -60,7 +67,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
       - name: Holatni saqlash (yopiq kesh)
-        if: always()
+        if: always() && (steps.slot.outputs.run == 'true' || github.event_name == 'workflow_dispatch')
         uses: actions/cache/save@v4
         with:
           path: |

@@ -321,5 +321,40 @@ def main(dry=False):
     return rec
 
 
+def slot_due(cfg, hist, now=None):
+    """Joylash vaqti kelgan, lekin hali joylanmagan reels bormi? (GitHub ishga tushirishni tashlab ketsa ham)"""
+    now = now or datetime.now(TZ)
+    window = timedelta(hours=float(cfg.get("kechikish_oynasi_soat", 5)))
+    slots = []
+    for day in (now.date() - timedelta(days=1), now.date()):
+        for hm in cfg.get("joylash_vaqtlari", ["12:45", "19:45"]):
+            h, m = map(int, hm.split(":"))
+            slots.append(datetime(day.year, day.month, day.day, h, m, tzinfo=TZ))
+    past = [s for s in slots if s <= now]
+    if not past:
+        return False, "hali vaqt emas"
+    last = max(past)
+    if now - last > window:
+        return False, f"oxirgi vaqt ({last:%d.%m %H:%M}) o'tib ketgan"
+    for h in hist:
+        if not h.get("media_id"):
+            continue
+        try:
+            t = datetime.strptime(h["sana"], "%Y%m%d_%H%M").replace(tzinfo=TZ)
+        except (KeyError, ValueError):
+            continue
+        if t >= last - timedelta(minutes=30):
+            return False, f"{last:%H:%M} uchun allaqachon joylangan"
+    return True, f"{last:%d.%m %H:%M} vaqti uchun joylash kerak"
+
+
 if __name__ == "__main__":
+    if "--check-slot" in sys.argv:
+        ok, why = slot_due(load(CONFIG, {}), load(HISTORY, []))
+        log(f"vaqt tekshiruvi: {why}")
+        out = os.environ.get("GITHUB_OUTPUT")
+        if out:
+            with open(out, "a") as f:
+                f.write(f"run={'true' if ok else 'false'}\n")
+        sys.exit(0)
     main(dry="--dry-run" in sys.argv)
